@@ -1,0 +1,130 @@
+local Player = game.Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Mouse = Player:GetMouse()
+
+-- Configurações da UI
+local SCREEN_GUI = Instance.new("ScreenGui")
+SCREEN_GUI.Name = "AutoParryUI"
+SCREEN_GUI.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+local FRAME = Instance.new("Frame")
+FRAME.Size = UDim2.new(0.2, 0, 0.1, 0)
+FRAME.Position = UDim2.new(0.05, 0, 0.85, 0)
+FRAME.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+FRAME.BackgroundTransparency = 0.5
+FRAME.BorderSizePixel = 0
+FRAME.Parent = SCREEN_GUI
+
+local TITLE = Instance.new("TextLabel")
+TITLE.Text = "⚔️ DEATH BALL AUTOPARRY"
+TITLE.Size = UDim2.new(1, 0, 0.3, 0)
+TITLE.Position = UDim2.new(0, 0, 0, 0)
+TITLE.TextColor3 = Color3.fromRGB(255, 255, 255)
+TITLE.BackgroundTransparency = 1
+TITLE.Font = Enum.Font.GothamBold
+TITLE.TextSize = 14
+TITLE.Parent = FRAME
+
+local STATUS = Instance.new("TextLabel")
+STATUS.Text = "🟢 STATUS: ATIVO"
+STATUS.Size = UDim2.new(1, 0, 0.3, 0)
+STATUS.Position = UDim2.new(0, 0, 0.3, 0)
+STATUS.TextColor3 = Color3.fromRGB(0, 255, 0)
+STATUS.BackgroundTransparency = 1
+STATUS.Font = Enum.Font.Gotham
+STATUS.TextSize = 12
+STATUS.Parent = FRAME
+
+local BALL_DETECTION = Instance.new("TextLabel")
+BALL_DETECTION.Text = "🎯 BOLA: NÃO DETECTADA"
+BALL_DETECTION.Size = UDim2.new(1, 0, 0.3, 0)
+BALL_DETECTION.Position = UDim2.new(0, 0, 0.6, 0)
+BALL_DETECTION.TextColor3 = Color3.fromRGB(255, 100, 100)
+BALL_DETECTION.BackgroundTransparency = 1
+BALL_DETECTION.Font = Enum.Font.Gotham
+BALL_DETECTION.TextSize = 12
+BALL_DETECTION.Parent = FRAME
+
+-- Variáveis do script
+local Parried = false
+local Cooldown = 0
+
+local function GetBall()
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and obj.Name == "Part" and obj:FindFirstChild("DeflectParticles") then
+            return obj
+        end
+    end
+    return nil
+end
+
+-- Função para simular clique do mouse
+local function SimulateLeftClick()
+    -- Salva a posição original do mouse
+    local originalPos = Vector2.new(Mouse.X, Mouse.Y)
+    
+    -- Move o mouse para o centro da tela (opcional, para garantir que está em um local válido)
+    Mouse.TargetFilter = workspace
+    Mouse.X = 0.5 * workspace.CurrentCamera.ViewportSize.X
+    Mouse.Y = 0.5 * workspace.CurrentCamera.ViewportSize.Y
+    
+    -- Simula o pressionamento e soltura do botão
+    mouse1press()
+    wait(0.05)  -- Pequeno delay para parecer mais natural
+    mouse1release()
+    
+    -- Retorna o mouse para a posição original
+    Mouse.X = originalPos.X
+    Mouse.Y = originalPos.Y
+end
+
+-- Atualiza a UI em tempo real
+RunService.Heartbeat:Connect(function()
+    local Ball = GetBall()
+    if Ball then
+        BALL_DETECTION.Text = "🎯 BOLA: DETECTADA (Vel: " .. math.floor(Ball.AssemblyLinearVelocity.Magnitude) .. ")"
+        BALL_DETECTION.TextColor3 = Color3.fromRGB(100, 255, 100)
+    else
+        BALL_DETECTION.Text = "🎯 BOLA: NÃO DETECTADA"
+        BALL_DETECTION.TextColor3 = Color3.fromRGB(255, 100, 100)
+    end
+
+    if Parried then
+        STATUS.Text = "⏳ PARRY: COOLDOWN"
+        STATUS.TextColor3 = Color3.fromRGB(255, 200, 0)
+    else
+        STATUS.Text = "✅ PARRY: PRONTO"
+        STATUS.TextColor3 = Color3.fromRGB(0, 255, 0)
+    end
+end)
+
+-- Lógica principal do autoparry
+RunService.PreSimulation:Connect(function()
+    local Ball = GetBall()
+    local HRP = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+    if not Ball or not HRP then return end
+
+    local BallVelocity = Ball.AssemblyLinearVelocity
+    local Speed = BallVelocity.Magnitude
+    local Distance = (HRP.Position - Ball.Position).Magnitude
+    local DirectionToPlayer = (HRP.Position - Ball.Position).Unit
+    local IsApproaching = (BallVelocity.Unit:Dot(DirectionToPlayer) > 0.5)
+
+    if Speed > 50 and Distance / Speed <= 0.35 and IsApproaching and not Parried and tick() - Cooldown > 0.5 then
+        SimulateLeftClick()  -- Usa a função de clique do mouse em vez de VirtualInputManager
+        Parried = true
+        Cooldown = tick()
+
+        task.delay(0.5, function()
+            Parried = false
+        end)
+    end
+end)
+
+-- Opcional: Tecla de toggle (ex: F10 para desativar/ativar)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if input.KeyCode == Enum.KeyCode.F10 then
+        SCREEN_GUI.Enabled = not SCREEN_GUI.Enabled
+    end
+end)
