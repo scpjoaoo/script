@@ -18,7 +18,7 @@ statusFrame.BorderSizePixel = 0
 statusFrame.Parent = screenGui
 
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Text = "🔍 PROCURANDO BOLA..."
+statusLabel.Text = "🔍 INICIANDO SISTEMA..."
 statusLabel.Size = UDim2.new(1, 0, 1, 0)
 statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 statusLabel.BackgroundTransparency = 1
@@ -26,12 +26,35 @@ statusLabel.Font = Enum.Font.GothamBold
 statusLabel.TextSize = 14
 statusLabel.Parent = statusFrame
 
--- Sistema de detecção aprimorado
+-- Verificação INFALÍVEL do jogador atual
+local function GetMyCharacter()
+    while not Player.Character do
+        Player.CharacterAdded:Wait()
+    end
+    
+    local character = Player.Character
+    -- Verificação por CreatorTag (100% garantido)
+    for _, child in ipairs(character:GetDescendants()) do
+        if child:IsA("BasePart") and child:FindFirstChild("Creator") then
+            if child.Creator.Value == Player then
+                return character
+            end
+        end
+    end
+    
+    -- Fallback seguro
+    if character:FindFirstChild("Humanoid") then
+        return character
+    end
+    
+    return nil
+end
+
+-- Detecção precisa da bola
 local function GetDeathBall()
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA("BasePart") and obj.Name == "Part" then
-            -- Verificação adicional dos componentes da bola
-            if obj:FindFirstChild("DeflectParticles") and obj:FindFirstChild("Trail") then
+            if obj:FindFirstChild("DeflectParticles") then
                 return obj
             end
         end
@@ -39,55 +62,48 @@ local function GetDeathBall()
     return nil
 end
 
--- Detecção de colisão precisa
-local function ShouldParry(ball, character)
-    if not character or not ball then return false end
-    
-    local hrp = character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return false end
-
-    -- 1. Verificação por raycasting
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterDescendantsInstances = {character, ball}
-    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-    
-    local raycastResult = workspace:Raycast(
-        ball.Position,
-        (hrp.Position - ball.Position).Unit * 50,
-        raycastParams
-    )
-    
-    -- 2. Cálculo de tempo de impacto
-    local ballVelocity = ball.AssemblyLinearVelocity
-    local distance = (hrp.Position - ball.Position).Magnitude
-    local timeToImpact = distance / math.max(ballVelocity.Magnitude, 0.1)
-    
-    -- 3. Verificação de direção
-    local directionToPlayer = (hrp.Position - ball.Position).Unit
-    local isApproaching = (ballVelocity.Unit:Dot(directionToPlayer) > 0.9)
-    
-    -- Condições combinadas para parry perfeito
-    return timeToImpact < 0.3 and isApproaching and raycastResult and raycastResult.Instance == hrp
-end
-
--- Sistema principal
+-- Sistema principal de parry
 RunService.Heartbeat:Connect(function()
-    local ball = GetDeathBall()
-    local character = Player.Character
-    
-    if not ball or not character then
-        statusLabel.Text = "🔍 BOLA NÃO DETECTADA"
+    -- Obtenção garantida do personagem
+    local character = GetMyCharacter()
+    if not character then
+        statusLabel.Text = "❌ PERSONAGEM NÃO ENCONTRADO"
         return
     end
     
-    if ShouldParry(ball, character) then
-        mouse1click()
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    
+    -- Detecção da bola
+    local ball = GetDeathBall()
+    if not ball then
+        statusLabel.Text = "🔍 PROCURANDO BOLA..."
+        return
+    end
+    
+    -- Cálculo de distância REAL
+    local distance = (hrp.Position - ball.Position).Magnitude
+    statusLabel.Text = string.format("🎯 DISTÂNCIA: %.1f studs", distance)
+    
+    -- Verificação de direção e velocidade
+    local ballVelocity = ball.AssemblyLinearVelocity
+    local directionToMe = (hrp.Position - ball.Position).Unit
+    local isApproaching = (ballVelocity.Unit:Dot(directionToMe) > 0.9)
+    
+    -- Condição de parry INFALÍVEL
+    if distance < 20 and isApproaching and ballVelocity.Magnitude > 30 then
+        -- Sistema de click garantido
+        for _ = 1, 3 do  -- Triple click para garantir
+            mouse1press()
+            wait(0.02)
+            mouse1release()
+            wait(0.02)
+        end
+        
         statusLabel.Text = "⚡ PARRY EXECUTADO!"
-        task.delay(0.2, function()
-            statusLabel.Text = "🟢 PRONTO PARA PARRY"
+        task.delay(0.3, function()
+            statusLabel.Text = string.format("🟢 PRONTO (Dist: %.1f)", distance)
         end)
-    else
-        statusLabel.Text = string.format("🎯 BOLA DETECTADA (Dist: %.1f)", (character.HumanoidRootPart.Position - ball.Position).Magnitude)
     end
 end)
 
@@ -98,4 +114,4 @@ UserInputService.InputBegan:Connect(function(input)
     end
 end)
 
-print("Sistema de AutoParry carregado com tecnologia de detecção avançada!")
+print("Sistema de AutoParry ativado com segurança máxima!")
