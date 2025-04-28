@@ -10,29 +10,56 @@ screenGui.Name = "AutoParryUI"
 screenGui.Parent = Player:WaitForChild("PlayerGui")
 
 local statusFrame = Instance.new("Frame")
-statusFrame.Size = UDim2.new(0.25, 0, 0.07, 0)
-statusFrame.Position = UDim2.new(0.05, 0, 0.9, 0)
+statusFrame.Size = UDim2.new(0.25, 0, 0.18, 0) -- ajustado para comportar 3 labels
+statusFrame.Position = UDim2.new(0.05, 0, 0.85, 0)
 statusFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 statusFrame.BackgroundTransparency = 0.5
 statusFrame.BorderSizePixel = 0
 statusFrame.Parent = screenGui
 
+-- Primeira label: Status da distância / parry
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Text = "🔍 INICIANDO SISTEMA..."
-statusLabel.Size = UDim2.new(1, 0, 1, 0)
+statusLabel.Size = UDim2.new(1, 0, 0.33, 0)
+statusLabel.Position = UDim2.new(0, 0, 0, 0)
 statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 statusLabel.BackgroundTransparency = 1
 statusLabel.Font = Enum.Font.GothamBold
 statusLabel.TextSize = 14
 statusLabel.Parent = statusFrame
 
--- Função correta para obter o personagem do jogador local
+-- Segunda label: Modo Ativado / Desativado
+local modeLabel = Instance.new("TextLabel")
+modeLabel.Text = "🟢 MODO ATIVADO"
+modeLabel.Size = UDim2.new(1, 0, 0.33, 0)
+modeLabel.Position = UDim2.new(0, 0, 0.33, 0)
+modeLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+modeLabel.BackgroundTransparency = 1
+modeLabel.Font = Enum.Font.GothamBold
+modeLabel.TextSize = 14
+modeLabel.Parent = statusFrame
+
+-- Terceira label: Nome do usuário e ID
+local userLabel = Instance.new("TextLabel")
+userLabel.Text = string.format("👤 @%s | ID: %d", Player.Name, Player.UserId)
+userLabel.Size = UDim2.new(1, 0, 0.33, 0)
+userLabel.Position = UDim2.new(0, 0, 0.66, 0)
+userLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+userLabel.BackgroundTransparency = 1
+userLabel.Font = Enum.Font.GothamBold
+userLabel.TextSize = 14
+userLabel.Parent = statusFrame
+
+-- Variável de controle (para ativar/desativar o AutoParry)
+local parryEnabled = true
+
+-- Função para obter o personagem do jogador local
 local function GetMyCharacter()
     local character = Player.Character or Player.CharacterAdded:Wait()
     return character
 end
 
--- Detecção precisa da bola
+-- Detecção da bola
 local function GetDeathBall()
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA("BasePart") and obj.Name == "Part" then
@@ -46,6 +73,11 @@ end
 
 -- Sistema principal de parry
 RunService.Heartbeat:Connect(function()
+    if not parryEnabled then
+        statusLabel.Text = "🟡 SISTEMA DESATIVADO"
+        return
+    end
+
     local character = GetMyCharacter()
     if not character then
         statusLabel.Text = "❌ PERSONAGEM NÃO ENCONTRADO"
@@ -58,23 +90,19 @@ RunService.Heartbeat:Connect(function()
         return
     end
 
-    -- Detecção da bola
     local ball = GetDeathBall()
     if not ball then
         statusLabel.Text = "🔍 PROCURANDO BOLA..."
         return
     end
 
-    -- Cálculo de distância REAL
-    local distance = (hrp.Position - ball.Position).Magnitude
+    local distance = (Player.Position - ball.Position).Magnitude
     statusLabel.Text = string.format("🎯 DISTÂNCIA: %.1f studs", distance)
 
-    -- Verificação de direção e velocidade
     local ballVelocity = ball.AssemblyLinearVelocity
-    local directionToMe = (hrp.Position - ball.Position).Unit
+    local directionToMe = (Player.Position - ball.Position).Unit
     local isApproaching = (ballVelocity.Magnitude > 0) and (ballVelocity.Unit:Dot(directionToMe) > 0.9)
 
-    -- Condição de parry
     if distance < 20 and isApproaching and ballVelocity.Magnitude > 30 then
         -- Triple click garantido
         for _ = 1, 3 do
@@ -91,10 +119,17 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- Toggle com F10
+-- Toggle com F10 para ativar/desativar o AutoParry
 UserInputService.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.F10 then
-        screenGui.Enabled = not screenGui.Enabled
+        parryEnabled = not parryEnabled
+        if parryEnabled then
+            modeLabel.Text = "🟢 MODO ATIVADO"
+            modeLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+        else
+            modeLabel.Text = "🔴 MODO DESATIVADO"
+            modeLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+        end
     end
 end)
 
