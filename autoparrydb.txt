@@ -1,0 +1,110 @@
+--[[
+  Death Ball AutoParry v3.0 (Final)
+  Recursos:
+  - Parry automático preciso
+  - Verificação segura do seu personagem
+  - UI minimalista
+  - Zero movimentação do mouse
+  - Otimizado para 120+ FPS
+]]
+
+-- Serviços
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+-- Variáveis essenciais
+local Player = Players.LocalPlayer
+local ParryCooldown = false
+local LastBallPosition = nil
+local LastUpdate = 0
+
+-- UI Minimalista
+local SCREEN_GUI = Instance.new("ScreenGui")
+SCREEN_GUI.Name = "AutoParryUI"
+SCREEN_GUI.Parent = Player:WaitForChild("PlayerGui")
+
+local STATUS = Instance.new("TextLabel")
+STATUS.Text = "🟢 AUTOPARRY: ATIVO"
+STATUS.Size = UDim2.new(0.2, 0, 0.05, 0)
+STATUS.Position = UDim2.new(0.05, 0, 0.9, 0)
+STATUS.TextColor3 = Color3.fromRGB(255, 255, 255)
+STATUS.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+STATUS.BackgroundTransparency = 0.5
+STATUS.Font = Enum.Font.GothamBold
+STATUS.TextSize = 12
+STATUS.Parent = SCREEN_GUI
+
+-- Função segura para obter SEU HRP
+local function GetMyHRP()
+    local character = Player.Character
+    if not character or not character.Parent then return nil end
+    
+    -- Verificação em 3 camadas
+    if character:FindFirstChild("HumanoidRootPart") then
+        local hrp = character.HumanoidRootPart
+        if hrp:IsA("BasePart") then
+            -- Verificação final (para jogos com clones)
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid and humanoid.Health > 0 then
+                return hrp
+            end
+        end
+    end
+    return nil
+end
+
+-- Função otimizada para detectar a bola
+local function GetBall()
+    local ball = workspace:FindFirstChild("Part") -- Nome exato da bola
+    return ball and ball:IsA("BasePart") and ball:FindFirstChild("DeflectParticles") and ball or nil
+end
+
+-- Sistema principal de parry
+RunService.Heartbeat:Connect(function()
+    -- Otimização: processa apenas a cada 0.1s
+    local now = tick()
+    if now - LastUpdate < 0.1 then return end
+    LastUpdate = now
+
+    -- Verifica personagem e bola
+    local myHRP = GetMyHRP()
+    local ball = GetBall()
+    if not myHRP or not ball then return end
+
+    -- Cálculo preciso de velocidade
+    local currentPos = ball.Position
+    local ballVelocity = if LastBallPosition 
+        then (currentPos - LastBallPosition) * 20 
+        else Vector3.new(0, 0, 0)
+    LastBallPosition = currentPos
+
+    -- Verificação de distância e direção
+    local distance = (myHRP.Position - currentPos).Magnitude
+    local isApproaching = (ballVelocity.Unit:Dot((myHRP.Position - currentPos).Unit) > 0.7)
+
+    -- Ativação do parry
+    if ballVelocity.Magnitude > 30 and distance < 15 and isApproaching and not ParryCooldown then
+        mouse1click() -- Input direto sem mover o mouse
+        
+        ParryCooldown = true
+        STATUS.Text = "⚡ PARRY ATIVADO"
+        
+        task.delay(0.3, function()
+            ParryCooldown = false
+            STATUS.Text = "🟢 AUTOPARRY: ATIVO"
+        end)
+    end
+end)
+
+-- Toggle com F10 (Opcional)
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.F10 then
+        SCREEN_GUI.Enabled = not SCREEN_GUI.Enabled
+        print("AutoParry:", SCREEN_GUI.Enabled and "ATIVADO" or "DESATIVADO")
+    end
+end)
+
+-- Inicialização
+print("AutoParry carregado com sucesso!")
+STATUS.Text = "🟢 AUTOPARRY: ATIVO"
