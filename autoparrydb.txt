@@ -26,28 +26,10 @@ statusLabel.Font = Enum.Font.GothamBold
 statusLabel.TextSize = 14
 statusLabel.Parent = statusFrame
 
--- Verificação INFALÍVEL do jogador atual
+-- Função correta para obter o personagem do jogador local
 local function GetMyCharacter()
-    while not Player.Character do
-        Player.CharacterAdded:Wait()
-    end
-    
-    local character = Player.Character
-    -- Verificação por CreatorTag (100% garantido)
-    for _, child in ipairs(character:GetDescendants()) do
-        if child:IsA("BasePart") and child:FindFirstChild("Creator") then
-            if child.Creator.Value == Player then
-                return character
-            end
-        end
-    end
-    
-    -- Fallback seguro
-    if character:FindFirstChild("Humanoid") then
-        return character
-    end
-    
-    return nil
+    local character = Player.Character or Player.CharacterAdded:Wait()
+    return character
 end
 
 -- Detecção precisa da bola
@@ -64,42 +46,44 @@ end
 
 -- Sistema principal de parry
 RunService.Heartbeat:Connect(function()
-    -- Obtenção garantida do personagem
     local character = GetMyCharacter()
     if not character then
         statusLabel.Text = "❌ PERSONAGEM NÃO ENCONTRADO"
         return
     end
-    
+
     local hrp = character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-    
+    if not hrp then
+        statusLabel.Text = "❌ HUMANOIDROOTPART NÃO ENCONTRADO"
+        return
+    end
+
     -- Detecção da bola
     local ball = GetDeathBall()
     if not ball then
         statusLabel.Text = "🔍 PROCURANDO BOLA..."
         return
     end
-    
+
     -- Cálculo de distância REAL
     local distance = (hrp.Position - ball.Position).Magnitude
     statusLabel.Text = string.format("🎯 DISTÂNCIA: %.1f studs", distance)
-    
+
     -- Verificação de direção e velocidade
     local ballVelocity = ball.AssemblyLinearVelocity
     local directionToMe = (hrp.Position - ball.Position).Unit
-    local isApproaching = (ballVelocity.Unit:Dot(directionToMe) > 0.9)
-    
-    -- Condição de parry INFALÍVEL
+    local isApproaching = (ballVelocity.Magnitude > 0) and (ballVelocity.Unit:Dot(directionToMe) > 0.9)
+
+    -- Condição de parry
     if distance < 20 and isApproaching and ballVelocity.Magnitude > 30 then
-        -- Sistema de click garantido
-        for _ = 1, 3 do  -- Triple click para garantir
+        -- Triple click garantido
+        for _ = 1, 3 do
             mouse1press()
             wait(0.02)
             mouse1release()
             wait(0.02)
         end
-        
+
         statusLabel.Text = "⚡ PARRY EXECUTADO!"
         task.delay(0.3, function()
             statusLabel.Text = string.format("🟢 PRONTO (Dist: %.1f)", distance)
@@ -115,3 +99,4 @@ UserInputService.InputBegan:Connect(function(input)
 end)
 
 print("Sistema de AutoParry ativado com segurança máxima!")
+print("Jogador atual: " .. Player.Name .. " | ID: " .. Player.UserId)
